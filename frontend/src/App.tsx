@@ -11,7 +11,7 @@ import VotingProgress from './components/VotingProgress'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
-const emptyRound = () => ({ text: '', streaming: false, done: false, searchQuery: null, searchLive: false })
+const emptyRound = () => ({ text: '', streaming: false, done: false, searchQuery: null, searchLive: false, trace: [] as import('./types').TraceEntry[] })
 const emptyAgent = () => ({
   r1:   emptyRound(),
   r2:   emptyRound(),
@@ -113,6 +113,30 @@ function reducer(state: DebateState, action: Action): DebateState {
 
     case 'OVERRIDE':
       return { ...state, override: action.vote }
+
+    case 'TRACE_THOUGHT':
+      return updateRound(state, action.agent, action.round, {
+        trace: [
+          ...state.agents[action.agent][action.round].trace,
+          { kind: 'thought', text: action.text },
+        ],
+      })
+
+    case 'TRACE_ACTION':
+      return updateRound(state, action.agent, action.round, {
+        trace: [
+          ...state.agents[action.agent][action.round].trace,
+          { kind: 'action', tool: action.tool, args: action.args },
+        ],
+      })
+
+    case 'TRACE_OBS':
+      return updateRound(state, action.agent, action.round, {
+        trace: [
+          ...state.agents[action.agent][action.round].trace,
+          { kind: 'obs', text: action.text },
+        ],
+      })
 
     case 'RESET':
       return initialState
@@ -216,6 +240,15 @@ export default function App() {
                 break
               case 'error':
                 dispatch({ type: 'ERROR', message: data.message })
+                break
+              case 'trace_thought':
+                dispatch({ type: 'TRACE_THOUGHT', agent: data.agent as AgentKey, round: data.round as Round, text: data.text })
+                break
+              case 'trace_action':
+                dispatch({ type: 'TRACE_ACTION', agent: data.agent as AgentKey, round: data.round as Round, tool: data.tool, args: data.args ?? {} })
+                break
+              case 'trace_obs':
+                dispatch({ type: 'TRACE_OBS', agent: data.agent as AgentKey, round: data.round as Round, text: data.text })
                 break
             }
           } catch {

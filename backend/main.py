@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from .agents import AGENTS, VOTE_SUFFIX, parse_vote
 from .database import get_history, init_db, save_debate
-from .search import format_for_context, make_query, web_search
+from .react_agent import run_react_agent
 
 load_dotenv()
 
@@ -48,71 +48,40 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
     results: dict[str, str] = {}
 
     try:
-        # ── Round 1: opening positions ────────────────────────────────
+        # ── Round 1: opening positions (ReAct loop) ───────────────────
         for key in keys:
-            query = make_query(key, "r1", topic)
-            search_results = await web_search(query)
-            context = format_for_context(search_results)
-            yield sse({"type": "search_query", "agent": key, "round": "r1",
-                       "query": query, "live": bool(search_results)})
-
+            user_msg = f"The question before the MAGI: {topic}\n\nState your opening position."
             yield sse({"type": "agent_start", "agent": key, "round": "r1"})
-            content = f"The question before the MAGI: {topic}\n\n"
-            if context:
-                content += f"{context}\n\n"
-            content += "State your opening position."
-            msgs = [{"role": "user", "content": content}]
-            stream = await client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": AGENTS[key]["system"]}] + msgs,
-                max_tokens=220,
-                temperature=0.87,
-                stream=True,
-            )
             full = ""
-            async for chunk in stream:
-                token = chunk.choices[0].delta.content
-                if token:
-                    full += token
-                    yield sse({"type": "token", "agent": key, "round": "r1", "text": token})
+            async for event in run_react_agent(
+                client, key, "r1", AGENTS[key]["system"], user_msg, debate_context=""
+            ):
+                if event["type"] == "token":
+                    full += event["text"]
+                yield sse(event)
             results[f"r1_{key}"] = full
             yield sse({"type": "agent_done", "agent": key, "round": "r1"})
 
-        # ── Round 2: responses with full R1 context ───────────────────
+        # ── Round 2: responses with full R1 context (ReAct loop) ──────
         r1_block = "\n\n".join(
             f"{AGENTS[k]['id']} [{AGENTS[k]['role']}]:\n{results[f'r1_{k}']}"
             for k in keys
         )
         for key in keys:
-            query = make_query(key, "r2", topic)
-            search_results = await web_search(query)
-            context = format_for_context(search_results)
-            yield sse({"type": "search_query", "agent": key, "round": "r2",
-                       "query": query, "live": bool(search_results)})
-
-            yield sse({"type": "agent_start", "agent": key, "round": "r2"})
-            content = f"The question: {topic}\n\n"
-            if context:
-                content += f"{context}\n\n"
-            content += (
+            user_msg = (
+                f"The question: {topic}\n\n"
                 f"Round 1 positions:\n{r1_block}\n\n"
                 "Respond. Do not repeat your opening — advance your argument, "
                 "attack theirs, or surface the contradiction between your fragments."
             )
-            msgs = [{"role": "user", "content": content}]
-            stream = await client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": AGENTS[key]["system"]}] + msgs,
-                max_tokens=220,
-                temperature=0.87,
-                stream=True,
-            )
+            yield sse({"type": "agent_start", "agent": key, "round": "r2"})
             full = ""
-            async for chunk in stream:
-                token = chunk.choices[0].delta.content
-                if token:
-                    full += token
-                    yield sse({"type": "token", "agent": key, "round": "r2", "text": token})
+            async for event in run_react_agent(
+                client, key, "r2", AGENTS[key]["system"], user_msg, debate_context=r1_block
+            ):
+                if event["type"] == "token":
+                    full += event["text"]
+                yield sse(event)
             results[f"r2_{key}"] = full
             yield sse({"type": "agent_done", "agent": key, "round": "r2"})
 

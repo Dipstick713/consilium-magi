@@ -3,12 +3,18 @@ export type Round = 'r1' | 'r2' | 'vote'
 export type VoteResult = 'APPROVE' | 'REJECT'
 export type DebateStatus = 'idle' | 'running' | 'complete' | 'error'
 
+export type TraceEntry =
+  | { kind: 'thought'; text: string }
+  | { kind: 'action';  tool: string; args: Record<string, unknown> }
+  | { kind: 'obs';     text: string }
+
 export interface AgentRound {
   text: string
   streaming: boolean
   done: boolean
   searchQuery: string | null
   searchLive: boolean
+  trace: TraceEntry[]
 }
 
 export interface AgentVote extends AgentRound {
@@ -68,3 +74,6 @@ export type Action =
   | { type: 'SPLIT_DONE' }
   | { type: 'OVERRIDE'; vote: VoteResult | null }
   | { type: 'RESET' }
+  | { type: 'TRACE_THOUGHT'; agent: AgentKey; round: Round; text: string }
+  | { type: 'TRACE_ACTION';  agent: AgentKey; round: Round; tool: string; args: Record<string, unknown> }
+  | { type: 'TRACE_OBS';     agent: AgentKey; round: Round; text: string }

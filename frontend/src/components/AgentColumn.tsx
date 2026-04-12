@@ -1,5 +1,6 @@
 import type { AgentKey, AgentState, AgentRound, AgentVote, VoteResult } from '../types'
 import { AGENT_CONFIG } from '../agents'
+import AgentTrace from './AgentTrace'
 
 interface Props {
   agentKey: AgentKey
@@ -45,6 +46,7 @@ function RoundBlock({ label, round, color }: { label: string; round: AgentRound;
   return (
     <div className="mb-5">
       <div className="text-[0.58em] tracking-[3px] mb-1.5 text-nerv-dim">// {label}</div>
+      <AgentTrace trace={round.trace} color={color} isLive={round.streaming && round.text === ''} />
       {round.searchQuery && (
         <SearchLine query={round.searchQuery} live={round.searchLive} color={color} />
       )}
@@ -54,7 +56,7 @@ function RoundBlock({ label, round, color }: { label: string; round: AgentRound;
           {round.streaming && <Cursor />}
         </p>
       ) : (
-        round.streaming && <Cursor color={color} />
+        round.streaming && round.trace.length === 0 && <Cursor color={color} />
       )}
     </div>
   )
