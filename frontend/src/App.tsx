@@ -7,6 +7,7 @@ import AgentColumn from './components/AgentColumn'
 import VerdictPanel from './components/VerdictPanel'
 import HistorySidebar from './components/HistorySidebar'
 import SplitAnalysis from './components/SplitAnalysis'
+import VotingProgress from './components/VotingProgress'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
@@ -232,6 +233,15 @@ export default function App() {
   const isRunning = state.status === 'running'
   const showColumns = state.status !== 'idle'
 
+  // Show voting panel once any agent has started their vote round
+  const votingActive =
+    isRunning &&
+    state.verdict === null &&
+    AGENT_KEYS.some(k => {
+      const v = state.agents[k].vote
+      return v.streaming || v.done || v.text !== ''
+    })
+
   return (
     <div className="min-h-screen bg-nerv-bg text-nerv-text">
       <HistorySidebar
@@ -267,6 +277,10 @@ export default function App() {
               <AgentColumn key={key} agentKey={key} agentState={state.agents[key]} />
             ))}
           </div>
+        )}
+
+        {votingActive && (
+          <VotingProgress agents={state.agents} />
         )}
 
         {state.verdict && (
