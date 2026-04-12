@@ -37,6 +37,7 @@ async def run_react_agent(
     system_prompt: str,
     user_message: str,
     debate_context: str = "",
+    max_tokens: int = 220,
 ) -> AsyncGenerator[dict[str, Any], None]:
     messages: list[dict] = [
         {"role": "system", "content": system_prompt},
@@ -145,7 +146,7 @@ async def run_react_agent(
     stream = await client.chat.completions.create(
         model=_MAIN_MODEL,
         messages=messages,
-        max_tokens=220,
+        max_tokens=max_tokens,
         temperature=0.87,
         stream=True,
     )

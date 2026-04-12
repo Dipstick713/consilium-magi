@@ -1,5 +1,5 @@
 import { useReducer, useRef, useState, useCallback, useEffect } from 'react'
-import type { DebateState, Action, AgentKey, Round, VoteResult, DebateRecord } from './types'
+import type { DebateState, Action, AgentKey, Round, VoteResult, DebateRecord, FullMagiConfig } from './types'
 import { AGENT_KEYS } from './agents'
 import Header from './components/Header'
 import TopicInput from './components/TopicInput'
@@ -8,6 +8,7 @@ import VerdictPanel from './components/VerdictPanel'
 import HistorySidebar from './components/HistorySidebar'
 import SplitAnalysis from './components/SplitAnalysis'
 import VotingProgress from './components/VotingProgress'
+import CustomizePanel from './components/CustomizePanel'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
@@ -152,7 +153,9 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [apiKey, setApiKey] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
   const [history, setHistory] = useState<DebateRecord[]>([])
+  const [magiConfig, setMagiConfig] = useState<FullMagiConfig | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const fetchHistory = useCallback(async () => {
@@ -162,8 +165,24 @@ export default function App() {
     } catch { /* backend may not be up yet */ }
   }, [])
 
+  const fetchConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/config')
+      if (res.ok) setMagiConfig(await res.json())
+    } catch { /* backend may not be up yet */ }
+  }, [])
+
+  const saveConfig = useCallback(async (config: FullMagiConfig) => {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    })
+    if (res.ok) setMagiConfig(config)
+  }, [])
+
   // Load on mount
-  useEffect(() => { fetchHistory() }, [fetchHistory])
+  useEffect(() => { fetchHistory(); fetchConfig() }, [fetchHistory, fetchConfig])
 
   // Refresh after each completed debate
   useEffect(() => {
@@ -281,7 +300,17 @@ export default function App() {
         open={historyOpen}
         records={history}
         onClose={() => setHistoryOpen(false)}
+        onCustomize={() => { setHistoryOpen(false); setCustomizeOpen(true) }}
       />
+
+      {magiConfig && (
+        <CustomizePanel
+          open={customizeOpen}
+          config={magiConfig}
+          onClose={() => setCustomizeOpen(false)}
+          onSave={saveConfig}
+        />
+      )}
 
       {/* Main area shifts right when sidebar is open */}
       <div
@@ -307,7 +336,12 @@ export default function App() {
         {showColumns && (
           <div className="mt-8 grid grid-cols-3 gap-5">
             {AGENT_KEYS.map(key => (
-              <AgentColumn key={key} agentKey={key} agentState={state.agents[key]} />
+              <AgentColumn
+                key={key}
+                agentKey={key}
+                agentState={state.agents[key]}
+                customConfig={magiConfig?.[key]}
+              />
             ))}
           </div>
         )}

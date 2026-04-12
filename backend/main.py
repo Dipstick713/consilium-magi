@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from collections.abc import AsyncGenerator
@@ -10,7 +11,8 @@ from fastapi.responses import StreamingResponse
 from groq import AsyncGroq
 from pydantic import BaseModel
 
-from .agents import AGENTS, VOTE_SUFFIX, parse_vote
+from .agents import VOTE_SUFFIX, parse_vote
+from .config import FullConfig, build_system_prompt, load_config, save_config
 from .database import get_history, init_db, save_debate
 from .react_agent import run_react_agent
 
@@ -44,8 +46,23 @@ def sse(data: dict) -> str:
 
 async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
     client = AsyncGroq(api_key=api_key)
-    keys = list(AGENTS.keys())
+    cfg = await asyncio.to_thread(load_config)
+    keys = list(cfg.keys())
     results: dict[str, str] = {}
+
+    # Pre-build prompts and max_tokens for every agent
+    prompts: dict[str, str] = {}
+    token_limits: dict[str, int] = {}
+    for key in keys:
+        p, t = build_system_prompt(key, cfg[key])
+        prompts[key] = p
+        token_limits[key] = t
+
+    def label(k: str) -> str:
+        return f"{cfg[k]['name'].upper()}-{'1' if k == 'MELCHIOR' else '2' if k == 'BALTHASAR' else '3'}"
+
+    def role(k: str) -> str:
+        return cfg[k]["archetype"] if cfg[k]["archetype"] != "Custom" else "MAGI"
 
     try:
         # ── Round 1: opening positions (ReAct loop) ───────────────────
@@ -54,7 +71,8 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
             yield sse({"type": "agent_start", "agent": key, "round": "r1"})
             full = ""
             async for event in run_react_agent(
-                client, key, "r1", AGENTS[key]["system"], user_msg, debate_context=""
+                client, key, "r1", prompts[key], user_msg,
+                debate_context="", max_tokens=token_limits[key],
             ):
                 if event["type"] == "token":
                     full += event["text"]
@@ -64,7 +82,7 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
 
         # ── Round 2: responses with full R1 context (ReAct loop) ──────
         r1_block = "\n\n".join(
-            f"{AGENTS[k]['id']} [{AGENTS[k]['role']}]:\n{results[f'r1_{k}']}"
+            f"{label(k)} [{role(k)}]:\n{results[f'r1_{k}']}"
             for k in keys
         )
         for key in keys:
@@ -77,7 +95,8 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
             yield sse({"type": "agent_start", "agent": key, "round": "r2"})
             full = ""
             async for event in run_react_agent(
-                client, key, "r2", AGENTS[key]["system"], user_msg, debate_context=r1_block
+                client, key, "r2", prompts[key], user_msg,
+                debate_context=r1_block, max_tokens=token_limits[key],
             ):
                 if event["type"] == "token":
                     full += event["text"]
@@ -87,7 +106,7 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
 
         # ── Vote: formal judgment with full debate context ────────────
         r2_block = "\n\n".join(
-            f"{AGENTS[k]['id']} [{AGENTS[k]['role']}] Round 2:\n{results[f'r2_{k}']}"
+            f"{label(k)} [{role(k)}] Round 2:\n{results[f'r2_{k}']}"
             for k in keys
         )
         full_debate = r1_block + "\n\n" + r2_block
@@ -102,7 +121,7 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
             }]
             stream = await client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": AGENTS[key]["system"]}] + msgs,
+                messages=[{"role": "system", "content": prompts[key]}] + msgs,
                 max_tokens=170,
                 temperature=0.87,
                 stream=True,
@@ -139,14 +158,14 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
                     f"The vote is complete. The verdict is {verdict} ({approve_count}/3 approve). "
                     f"You cast the dissenting vote: {vote_data[dissenter]['vote']}.\n\n"
                     f"The question: {topic}\n\n"
-                    f"Speak directly to the other fragments. In one paragraph (120–150 words), "
-                    f"explain precisely what you see that they cannot, or will not, see. "
-                    f"Be specific to this question. Do not summarize the debate — illuminate your dissent."
+                    "Speak directly to the other fragments. In one paragraph (120–150 words), "
+                    "explain precisely what you see that they cannot, or will not, see. "
+                    "Be specific to this question. Do not summarize the debate — illuminate your dissent."
                 ),
             }]
             stream = await client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": AGENTS[dissenter]["system"]}] + msgs,
+                messages=[{"role": "system", "content": prompts[dissenter]}] + msgs,
                 max_tokens=210,
                 temperature=0.9,
                 stream=True,
@@ -177,6 +196,25 @@ async def debate(request: DebateRequest):
             "Connection": "keep-alive",
         },
     )
+
+
+@app.get("/api/config")
+async def get_config():
+    return await asyncio.to_thread(load_config)
+
+
+@app.post("/api/config")
+async def post_config(body: dict):
+    # Validate shape minimally — trust the frontend for now
+    cfg: FullConfig = {}
+    defaults_ref = await asyncio.to_thread(load_config)
+    for key in ("MELCHIOR", "BALTHASAR", "CASPAR"):
+        if key in body:
+            cfg[key] = {**defaults_ref[key], **body[key]}
+        else:
+            cfg[key] = defaults_ref[key]
+    await asyncio.to_thread(save_config, cfg)
+    return {"status": "saved"}
 
 
 @app.get("/api/history")

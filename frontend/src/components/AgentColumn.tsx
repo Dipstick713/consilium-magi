@@ -1,15 +1,24 @@
-import type { AgentKey, AgentState, AgentRound, AgentVote, VoteResult } from '../types'
+import type { AgentKey, AgentState, AgentRound, AgentVote, MagiAgentConfig, VoteResult } from '../types'
 import { AGENT_CONFIG } from '../agents'
+import { agentDisplayId } from '../lib/promptBuilder'
 import AgentTrace from './AgentTrace'
 
 interface Props {
   agentKey: AgentKey
   agentState: AgentState
+  customConfig?: MagiAgentConfig
 }
 
-export default function AgentColumn({ agentKey, agentState }: Props) {
+export default function AgentColumn({ agentKey, agentState, customConfig }: Props) {
   const agent = AGENT_CONFIG[agentKey]
   const { color } = agent
+
+  const displayId = customConfig
+    ? agentDisplayId(agentKey, customConfig.name)
+    : agent.id
+  const displayRole = customConfig
+    ? (customConfig.archetype === 'Custom' ? 'CUSTOM' : customConfig.archetype.toUpperCase())
+    : agent.role
 
   return (
     <div className="flex flex-col min-w-0">
@@ -25,10 +34,10 @@ export default function AgentColumn({ agentKey, agentState }: Props) {
         style={{ borderBottom: `1px solid ${color}18` }}
       >
         <div className="text-[0.58em] tracking-[4px] mb-0.5" style={{ color: `${color}55` }}>
-          ⬡ {agent.id}
+          ⬡ {displayId}
         </div>
         <div className="text-[0.92em] tracking-[4px]" style={{ color }}>
-          {agent.role}
+          {displayRole}
         </div>
       </div>
 

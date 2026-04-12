@@ -5,9 +5,10 @@ interface Props {
   open: boolean
   records: DebateRecord[]
   onClose: () => void
+  onCustomize: () => void
 }
 
-export default function HistorySidebar({ open, records, onClose }: Props) {
+export default function HistorySidebar({ open, records, onClose, onCustomize }: Props) {
   return (
     <>
       {/* Sidebar panel */}
@@ -42,6 +43,17 @@ export default function HistorySidebar({ open, records, onClose }: Props) {
           ) : (
             records.map(r => <HistoryItem key={r.id} record={r} />)
           )}
+        </div>
+
+        {/* Footer: Customize button */}
+        <div className="shrink-0 px-4 py-3 border-t border-nerv-border">
+          <button
+            onClick={onCustomize}
+            className="w-full text-[0.6em] tracking-[3px] border border-nerv-border px-3 py-2.5 transition-colors hover:border-[#9B59B6] hover:text-[#9B59B6] text-[#2a2a2a]"
+            style={{ background: 'none' }}
+          >
+            ⬡  CUSTOMIZE MAGI
+          </button>
         </div>
       </aside>
 

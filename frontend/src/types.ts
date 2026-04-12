@@ -1,4 +1,25 @@
 export type AgentKey = 'MELCHIOR' | 'BALTHASAR' | 'CASPAR'
+
+export type Archetype =
+  | 'Scientist'
+  | 'Mother'
+  | 'Woman'
+  | 'Philosopher'
+  | "Devil's Advocate"
+  | 'Optimist'
+  | 'Historian'
+  | 'Custom'
+
+export interface MagiAgentConfig {
+  name: string
+  archetype: Archetype
+  aggression: number   // 0–100
+  verbosity: number    // 0–100
+  signature_phrase: string
+  custom_prompt: string
+}
+
+export type FullMagiConfig = Record<AgentKey, MagiAgentConfig>
 export type Round = 'r1' | 'r2' | 'vote'
 export type VoteResult = 'APPROVE' | 'REJECT'
 export type DebateStatus = 'idle' | 'running' | 'complete' | 'error'
