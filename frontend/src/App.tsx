@@ -6,6 +6,7 @@ import TopicInput from './components/TopicInput'
 import AgentColumn from './components/AgentColumn'
 import VerdictPanel from './components/VerdictPanel'
 import HistorySidebar from './components/HistorySidebar'
+import SplitAnalysis from './components/SplitAnalysis'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ const initialState: DebateState = {
   approveCount: 0,
   verdict: null,
   override: null,
+  splitAnalysis: null,
   error: null,
 }
 
@@ -96,6 +98,17 @@ function reducer(state: DebateState, action: Action): DebateState {
 
     case 'ERROR':
       return { ...state, status: 'error', error: action.message }
+
+    case 'SPLIT_START':
+      return { ...state, splitAnalysis: { dissenterKey: action.dissenterKey, text: '', streaming: true } }
+
+    case 'SPLIT_TOKEN':
+      if (!state.splitAnalysis) return state
+      return { ...state, splitAnalysis: { ...state.splitAnalysis, text: state.splitAnalysis.text + action.text } }
+
+    case 'SPLIT_DONE':
+      if (!state.splitAnalysis) return state
+      return { ...state, splitAnalysis: { ...state.splitAnalysis, streaming: false } }
 
     case 'OVERRIDE':
       return { ...state, override: action.vote }
@@ -188,6 +201,15 @@ export default function App() {
               case 'verdict':
                 dispatch({ type: 'VERDICT', approveCount: data.approve_count, verdict: data.verdict as VoteResult })
                 break
+              case 'split_start':
+                dispatch({ type: 'SPLIT_START', dissenterKey: data.dissenter as AgentKey })
+                break
+              case 'split_token':
+                dispatch({ type: 'SPLIT_TOKEN', text: data.text })
+                break
+              case 'split_done':
+                dispatch({ type: 'SPLIT_DONE' })
+                break
               case 'done':
                 dispatch({ type: 'DONE' })
                 break
@@ -255,6 +277,10 @@ export default function App() {
             override={state.override}
             onOverride={vote => dispatch({ type: 'OVERRIDE', vote })}
           />
+        )}
+
+        {state.splitAnalysis && (
+          <SplitAnalysis analysis={state.splitAnalysis} />
         )}
       </main>
       </div>

@@ -156,6 +156,38 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
         yield sse({"type": "verdict", "approve_count": approve_count, "verdict": verdict})
 
         await save_debate(topic, verdict, approve_count, vote_data)
+
+        # ── Split vote analysis (2-1 only, not unanimous) ─────────────
+        if approve_count in (1, 2):
+            dissenter = next(
+                k for k in keys
+                if vote_data[k]["vote"] == ("REJECT" if approve_count == 2 else "APPROVE")
+            )
+            yield sse({"type": "split_start", "dissenter": dissenter})
+            msgs = [{
+                "role": "user",
+                "content": (
+                    f"The vote is complete. The verdict is {verdict} ({approve_count}/3 approve). "
+                    f"You cast the dissenting vote: {vote_data[dissenter]['vote']}.\n\n"
+                    f"The question: {topic}\n\n"
+                    f"Speak directly to the other fragments. In one paragraph (120–150 words), "
+                    f"explain precisely what you see that they cannot, or will not, see. "
+                    f"Be specific to this question. Do not summarize the debate — illuminate your dissent."
+                ),
+            }]
+            stream = await client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "system", "content": AGENTS[dissenter]["system"]}] + msgs,
+                max_tokens=210,
+                temperature=0.9,
+                stream=True,
+            )
+            async for chunk in stream:
+                token = chunk.choices[0].delta.content
+                if token:
+                    yield sse({"type": "split_token", "text": token})
+            yield sse({"type": "split_done"})
+
         yield sse({"type": "done"})
 
     except Exception as exc:

@@ -22,6 +22,12 @@ export interface AgentState {
   vote: AgentVote
 }
 
+export interface SplitAnalysis {
+  dissenterKey: AgentKey
+  text: string
+  streaming: boolean
+}
+
 export interface DebateState {
   status: DebateStatus
   topic: string
@@ -29,6 +35,7 @@ export interface DebateState {
   approveCount: number
   verdict: VoteResult | null
   override: VoteResult | null
+  splitAnalysis: SplitAnalysis | null
   error: string | null
 }
 
@@ -56,5 +63,8 @@ export type Action =
   | { type: 'VERDICT'; approveCount: number; verdict: VoteResult }
   | { type: 'DONE' }
   | { type: 'ERROR'; message: string }
+  | { type: 'SPLIT_START'; dissenterKey: AgentKey }
+  | { type: 'SPLIT_TOKEN'; text: string }
+  | { type: 'SPLIT_DONE' }
   | { type: 'OVERRIDE'; vote: VoteResult | null }
   | { type: 'RESET' }
