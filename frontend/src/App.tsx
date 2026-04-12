@@ -1,10 +1,11 @@
-import { useReducer, useRef, useState, useCallback } from 'react'
-import type { DebateState, Action, AgentKey, Round, VoteResult } from './types'
+import { useReducer, useRef, useState, useCallback, useEffect } from 'react'
+import type { DebateState, Action, AgentKey, Round, VoteResult, DebateRecord } from './types'
 import { AGENT_KEYS } from './agents'
 import Header from './components/Header'
 import TopicInput from './components/TopicInput'
 import AgentColumn from './components/AgentColumn'
 import VerdictPanel from './components/VerdictPanel'
+import HistorySidebar from './components/HistorySidebar'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
@@ -112,7 +113,24 @@ function reducer(state: DebateState, action: Action): DebateState {
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const [apiKey, setApiKey] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<DebateRecord[]>([])
   const abortRef = useRef<AbortController | null>(null)
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/history')
+      if (res.ok) setHistory(await res.json())
+    } catch { /* backend may not be up yet */ }
+  }, [])
+
+  // Load on mount
+  useEffect(() => { fetchHistory() }, [fetchHistory])
+
+  // Refresh after each completed debate
+  useEffect(() => {
+    if (state.status === 'complete') fetchHistory()
+  }, [state.status, fetchHistory])
 
   const startDebate = useCallback(async (topic: string) => {
     abortRef.current?.abort()
@@ -194,7 +212,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-nerv-bg text-nerv-text">
-      <Header apiKey={apiKey} onApiKeyChange={setApiKey} />
+      <HistorySidebar
+        open={historyOpen}
+        records={history}
+        onClose={() => setHistoryOpen(false)}
+      />
+
+      {/* Main area shifts right when sidebar is open */}
+      <div
+        className="transition-[padding-left] duration-200"
+        style={{ paddingLeft: historyOpen ? '17rem' : 0 }}
+      >
+      <Header
+        apiKey={apiKey}
+        onApiKeyChange={setApiKey}
+        onToggleHistory={() => setHistoryOpen(v => !v)}
+        historyOpen={historyOpen}
+      />
 
       <main className="max-w-[1400px] mx-auto px-6 pb-20">
         <TopicInput onSubmit={startDebate} disabled={isRunning} />
@@ -223,6 +257,7 @@ export default function App() {
           />
         )}
       </main>
+      </div>
     </div>
   )
 }

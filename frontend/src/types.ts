@@ -32,6 +32,20 @@ export interface DebateState {
   error: string | null
 }
 
+export interface DebateRecord {
+  id: number
+  topic: string
+  verdict: 'APPROVE' | 'REJECT'
+  approve_count: number
+  melchior_vote:    string | null
+  balthasar_vote:   string | null
+  caspar_vote:      string | null
+  melchior_reason:  string | null
+  balthasar_reason: string | null
+  caspar_reason:    string | null
+  created_at: string
+}
+
 export type Action =
   | { type: 'START'; topic: string }
   | { type: 'SEARCH_QUERY'; agent: AgentKey; round: Round; query: string; live: boolean }

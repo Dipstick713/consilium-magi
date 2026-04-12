@@ -31,5 +31,8 @@ frontend/.vite/
 .DS_Store
 Thumbs.db
 
+# Database
+magi_history.db
+
 # Logs
 *.log

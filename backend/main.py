@@ -1,6 +1,7 @@
 import json
 import os
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -10,11 +11,19 @@ from groq import AsyncGroq
 from pydantic import BaseModel
 
 from .agents import AGENTS, VOTE_SUFFIX, parse_vote
+from .database import get_history, init_db, save_debate
 from .search import format_for_context, make_query, web_search
 
 load_dotenv()
 
-app = FastAPI(title="Consilium MAGI")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await init_db()
+    yield
+
+
+app = FastAPI(title="Consilium MAGI", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -114,6 +123,7 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
         )
         full_debate = r1_block + "\n\n" + r2_block
         approve_count = 0
+        vote_data: dict[str, dict] = {}
 
         for key in keys:
             yield sse({"type": "agent_start", "agent": key, "round": "vote"})
@@ -139,10 +149,13 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
             vote, reason = parse_vote(full)
             if vote == "APPROVE":
                 approve_count += 1
+            vote_data[key] = {"vote": vote, "reason": reason}
             yield sse({"type": "vote", "agent": key, "vote": vote, "reason": reason})
 
         verdict = "APPROVE" if approve_count >= 2 else "REJECT"
         yield sse({"type": "verdict", "approve_count": approve_count, "verdict": verdict})
+
+        await save_debate(topic, verdict, approve_count, vote_data)
         yield sse({"type": "done"})
 
     except Exception as exc:
@@ -163,6 +176,11 @@ async def debate(request: DebateRequest):
             "Connection": "keep-alive",
         },
     )
+
+
+@app.get("/api/history")
+async def history():
+    return await get_history()
 
 
 @app.get("/api/health")

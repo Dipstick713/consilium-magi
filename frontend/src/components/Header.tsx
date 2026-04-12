@@ -1,9 +1,11 @@
 interface Props {
   apiKey: string
   onApiKeyChange: (key: string) => void
+  onToggleHistory: () => void
+  historyOpen: boolean
 }
 
-export default function Header({ apiKey, onApiKeyChange }: Props) {
+export default function Header({ apiKey, onApiKeyChange, onToggleHistory, historyOpen }: Props) {
   return (
     <header className="border-b border-nerv-border mb-8">
       <div className="max-w-[1400px] mx-auto px-6 py-5 flex items-center gap-8">
@@ -19,6 +21,16 @@ export default function Header({ apiKey, onApiKeyChange }: Props) {
             MELCHIOR-1  ⬡  BALTHASAR-2  ⬡  CASPAR-3
           </div>
         </div>
+
+        {/* Archive toggle */}
+        <button
+          onClick={onToggleHistory}
+          className="shrink-0 text-[0.62em] tracking-[3px] border border-nerv-border px-3 py-2 transition-colors hover:border-[#FFB000] hover:text-[#FFB000]"
+          style={historyOpen ? { borderColor: '#FFB000', color: '#FFB000' } : undefined}
+          title="Toggle deliberation archive"
+        >
+          ⊞ ARCHIVE
+        </button>
 
         {/* API key */}
         <div className="w-52 shrink-0">
