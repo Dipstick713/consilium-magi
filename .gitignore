@@ -2,26 +2,26 @@
 .env
 *.env
 
+# Streamlit secrets (project no longer uses Streamlit, but guard the dir anyway)
+.streamlit/secrets.toml
+
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
 *.pyd
-.Python
+.venv/
+venv/
 *.egg-info/
 dist/
 build/
-.eggs/
-*.egg
 
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
+# uv
+# uv.lock is intentionally committed for reproducibility
 
-# Streamlit
-.streamlit/secrets.toml
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
 
 # IDE
 .vscode/

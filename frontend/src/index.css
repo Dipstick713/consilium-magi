@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+  }
+
+  body {
+    @apply bg-nerv-bg text-nerv-text;
+  }
+
+  ::selection {
+    background: #FFB000;
+    color: #080808;
+  }
+}
+
+@layer utilities {
+  .nerv-flicker {
+    animation: flicker 8s infinite;
+  }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92%       { opacity: 0.97; }
+  94%       { opacity: 0.92; }
+  96%       { opacity: 0.97; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: #080808; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
