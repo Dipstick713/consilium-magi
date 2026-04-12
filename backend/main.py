@@ -10,6 +10,7 @@ from groq import AsyncGroq
 from pydantic import BaseModel
 
 from .agents import AGENTS, VOTE_SUFFIX, parse_vote
+from .search import format_for_context, make_query, web_search
 
 load_dotenv()
 
@@ -40,8 +41,18 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
     try:
         # ── Round 1: opening positions ────────────────────────────────
         for key in keys:
+            query = make_query(key, "r1", topic)
+            search_results = await web_search(query)
+            context = format_for_context(search_results)
+            yield sse({"type": "search_query", "agent": key, "round": "r1",
+                       "query": query, "live": bool(search_results)})
+
             yield sse({"type": "agent_start", "agent": key, "round": "r1"})
-            msgs = [{"role": "user", "content": f"The question before the MAGI: {topic}\n\nState your opening position."}]
+            content = f"The question before the MAGI: {topic}\n\n"
+            if context:
+                content += f"{context}\n\n"
+            content += "State your opening position."
+            msgs = [{"role": "user", "content": content}]
             stream = await client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "system", "content": AGENTS[key]["system"]}] + msgs,
@@ -64,16 +75,22 @@ async def debate_stream(topic: str, api_key: str) -> AsyncGenerator[str, None]:
             for k in keys
         )
         for key in keys:
+            query = make_query(key, "r2", topic)
+            search_results = await web_search(query)
+            context = format_for_context(search_results)
+            yield sse({"type": "search_query", "agent": key, "round": "r2",
+                       "query": query, "live": bool(search_results)})
+
             yield sse({"type": "agent_start", "agent": key, "round": "r2"})
-            msgs = [{
-                "role": "user",
-                "content": (
-                    f"The question: {topic}\n\n"
-                    f"Round 1 positions:\n{r1_block}\n\n"
-                    "Respond. Do not repeat your opening — advance your argument, "
-                    "attack theirs, or surface the contradiction between your fragments."
-                ),
-            }]
+            content = f"The question: {topic}\n\n"
+            if context:
+                content += f"{context}\n\n"
+            content += (
+                f"Round 1 positions:\n{r1_block}\n\n"
+                "Respond. Do not repeat your opening — advance your argument, "
+                "attack theirs, or surface the contradiction between your fragments."
+            )
+            msgs = [{"role": "user", "content": content}]
             stream = await client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "system", "content": AGENTS[key]["system"]}] + msgs,
@@ -150,5 +167,9 @@ async def debate(request: DebateRequest):
 
 @app.get("/api/health")
 async def health():
-    env_key_set = bool(os.environ.get("GROQ_API_KEY"))
-    return {"status": "ONLINE", "system": "MAGI", "env_key_set": env_key_set}
+    return {
+        "status": "ONLINE",
+        "system": "MAGI",
+        "groq_key_set": bool(os.environ.get("GROQ_API_KEY")),
+        "tavily_key_set": bool(os.environ.get("TAVILY_API_KEY")),
+    }

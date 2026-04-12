@@ -7,6 +7,8 @@ export interface AgentRound {
   text: string
   streaming: boolean
   done: boolean
+  searchQuery: string | null
+  searchLive: boolean
 }
 
 export interface AgentVote extends AgentRound {
@@ -32,6 +34,7 @@ export interface DebateState {
 
 export type Action =
   | { type: 'START'; topic: string }
+  | { type: 'SEARCH_QUERY'; agent: AgentKey; round: Round; query: string; live: boolean }
   | { type: 'AGENT_START'; agent: AgentKey; round: Round }
   | { type: 'TOKEN'; agent: AgentKey; round: Round; text: string }
   | { type: 'AGENT_DONE'; agent: AgentKey; round: Round }

@@ -45,6 +45,9 @@ function RoundBlock({ label, round, color }: { label: string; round: AgentRound;
   return (
     <div className="mb-5">
       <div className="text-[0.58em] tracking-[3px] mb-1.5 text-nerv-dim">// {label}</div>
+      {round.searchQuery && (
+        <SearchLine query={round.searchQuery} live={round.searchLive} color={color} />
+      )}
       {round.text ? (
         <p className="text-[0.82em] leading-[1.85] whitespace-pre-wrap m-0 break-words" style={{ color }}>
           {round.text}
@@ -81,6 +84,22 @@ function VoteBlock({ label, round, color }: { label: string; round: AgentVote; c
           {round.vote}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Search line ────────────────────────────────────────────────────────────────
+
+function SearchLine({ query, live, color }: { query: string; live: boolean; color: string }) {
+  return (
+    <div
+      className="flex items-baseline gap-1.5 mb-2 text-[0.6em] tracking-wider leading-snug"
+      style={{ color: `${color}40` }}
+    >
+      <span>{live ? '⟳' : '⊘'}</span>
+      <span className="italic truncate" title={query}>
+        {query}
+      </span>
     </div>
   )
 }

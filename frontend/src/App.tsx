@@ -8,7 +8,7 @@ import VerdictPanel from './components/VerdictPanel'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
-const emptyRound = () => ({ text: '', streaming: false, done: false })
+const emptyRound = () => ({ text: '', streaming: false, done: false, searchQuery: null, searchLive: false })
 const emptyAgent = () => ({
   r1:   emptyRound(),
   r2:   emptyRound(),
@@ -53,6 +53,12 @@ function reducer(state: DebateState, action: Action): DebateState {
   switch (action.type) {
     case 'START':
       return { ...initialState, status: 'running', topic: action.topic }
+
+    case 'SEARCH_QUERY':
+      return updateRound(state, action.agent, action.round, {
+        searchQuery: action.query,
+        searchLive: action.live,
+      })
 
     case 'AGENT_START':
       return updateRound(state, action.agent, action.round, { streaming: true })
@@ -146,6 +152,9 @@ export default function App() {
           try {
             const data = JSON.parse(dataLine.slice(6))
             switch (data.type as string) {
+              case 'search_query':
+                dispatch({ type: 'SEARCH_QUERY', agent: data.agent as AgentKey, round: data.round as Round, query: data.query, live: data.live })
+                break
               case 'agent_start':
                 dispatch({ type: 'AGENT_START', agent: data.agent as AgentKey, round: data.round as Round })
                 break
