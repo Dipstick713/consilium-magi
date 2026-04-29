@@ -1,4 +1,12 @@
-import type { AgentKey, AgentState, AgentRound, AgentVote, MagiAgentConfig, VoteResult } from '../types'
+import type {
+  AgentKey,
+  AgentState,
+  AgentRound,
+  AgentVote,
+  MagiAgentConfig,
+  ReactionEntry,
+  VoteResult,
+} from '../types'
 import { AGENT_CONFIG } from '../agents'
 import { agentDisplayId } from '../lib/promptBuilder'
 import AgentTrace from './AgentTrace'
@@ -67,6 +75,13 @@ function RoundBlock({ label, round, color }: { label: string; round: AgentRound;
       ) : (
         round.streaming && round.trace.length === 0 && <Cursor color={color} />
       )}
+      {round.reactions.length > 0 && (
+        <div className="mt-2.5 flex flex-col gap-1.5">
+          {round.reactions.map((reaction, idx) => (
+            <ReactionCallout key={`${reaction.reactor}-${idx}`} reaction={reaction} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -132,4 +147,26 @@ function voteResultColor(vote: VoteResult | null): string | null {
   if (vote === 'APPROVE') return '#00FF41'
   if (vote === 'REJECT')  return '#FF4444'
   return null
+}
+
+function ReactionCallout({ reaction }: { reaction: ReactionEntry }) {
+  const style = reactionStyle(reaction.stance)
+  return (
+    <div
+      className="text-[0.61em] leading-[1.55] px-2 py-1 border border-dashed"
+      style={{ color: style.color, borderColor: style.border }}
+    >
+      {reaction.text}
+    </div>
+  )
+}
+
+function reactionStyle(stance: ReactionEntry['stance']) {
+  if (stance === 'agreement') {
+    return { color: '#7efea5', border: '#2d6f45' }
+  }
+  if (stance === 'synthesis') {
+    return { color: '#88d1ff', border: '#26557a' }
+  }
+  return { color: '#f6a46e', border: '#7a4c29' }
 }

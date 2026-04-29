@@ -1,5 +1,5 @@
 import { useReducer, useRef, useState, useCallback, useEffect } from 'react'
-import type { DebateState, Action, AgentKey, Round, VoteResult, DebateRecord, FullMagiConfig } from './types'
+import type { DebateState, Action, AgentKey, Round, VoteResult, DebateRecord, FullMagiConfig, ReactionStance } from './types'
 import { AGENT_KEYS } from './agents'
 import Header from './components/Header'
 import TopicInput from './components/TopicInput'
@@ -12,7 +12,15 @@ import CustomizePanel from './components/CustomizePanel'
 
 // ── Initial state ──────────────────────────────────────────────────────────────
 
-const emptyRound = () => ({ text: '', streaming: false, done: false, searchQuery: null, searchLive: false, trace: [] as import('./types').TraceEntry[] })
+const emptyRound = () => ({
+  text: '',
+  streaming: false,
+  done: false,
+  searchQuery: null,
+  searchLive: false,
+  trace: [] as import('./types').TraceEntry[],
+  reactions: [] as import('./types').ReactionEntry[],
+})
 const emptyAgent = () => ({
   r1:   emptyRound(),
   r2:   emptyRound(),
@@ -139,6 +147,14 @@ function reducer(state: DebateState, action: Action): DebateState {
         ],
       })
 
+    case 'REACTION':
+      return updateRound(state, action.agent, action.round, {
+        reactions: [
+          ...state.agents[action.agent][action.round].reactions,
+          { reactor: action.reactor, stance: action.stance, text: action.text },
+        ],
+      })
+
     case 'RESET':
       return initialState
 
@@ -238,6 +254,16 @@ export default function App() {
                 break
               case 'agent_done':
                 dispatch({ type: 'AGENT_DONE', agent: data.agent as AgentKey, round: data.round as Round })
+                break
+              case 'reaction':
+                dispatch({
+                  type: 'REACTION',
+                  agent: data.agent as AgentKey,
+                  round: data.round as Round,
+                  reactor: data.reactor as AgentKey,
+                  stance: data.stance as ReactionStance,
+                  text: data.text,
+                })
                 break
               case 'vote':
                 dispatch({ type: 'VOTE', agent: data.agent as AgentKey, vote: data.vote as VoteResult, reason: data.reason })

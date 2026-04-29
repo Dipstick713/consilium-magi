@@ -23,11 +23,18 @@ export type FullMagiConfig = Record<AgentKey, MagiAgentConfig>
 export type Round = 'r1' | 'r2' | 'vote'
 export type VoteResult = 'APPROVE' | 'REJECT'
 export type DebateStatus = 'idle' | 'running' | 'complete' | 'error'
+export type ReactionStance = 'agreement' | 'challenge' | 'synthesis'
 
 export type TraceEntry =
   | { kind: 'thought'; text: string }
   | { kind: 'action';  tool: string; args: Record<string, unknown> }
   | { kind: 'obs';     text: string }
+
+export interface ReactionEntry {
+  reactor: AgentKey
+  stance: ReactionStance
+  text: string
+}
 
 export interface AgentRound {
   text: string
@@ -36,6 +43,7 @@ export interface AgentRound {
   searchQuery: string | null
   searchLive: boolean
   trace: TraceEntry[]
+  reactions: ReactionEntry[]
 }
 
 export interface AgentVote extends AgentRound {
@@ -98,3 +106,4 @@ export type Action =
   | { type: 'TRACE_THOUGHT'; agent: AgentKey; round: Round; text: string }
   | { type: 'TRACE_ACTION';  agent: AgentKey; round: Round; tool: string; args: Record<string, unknown> }
   | { type: 'TRACE_OBS';     agent: AgentKey; round: Round; text: string }
+  | { type: 'REACTION';      agent: AgentKey; round: Round; reactor: AgentKey; stance: ReactionStance; text: string }

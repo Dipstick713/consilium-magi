@@ -24,10 +24,19 @@ Each agent knows the others are fragments of herself. They reference this shared
 
 1. Submit a question
 2. **Round 1** — each fragment states its opening position (streamed live)
-3. **Round 2** — each fragment responds to the others (streamed live)
-4. **Vote** — each fragment renders `APPROVE` or `REJECT` with a one-sentence reason
-5. **Verdict** — 2-of-3 majority displayed
-6. **Commander Override** — override the verdict in either direction; rescind at will
+3. **Inter-agent reactions** — after each statement, the other two fragments fire one-line agreement/challenge/synthesis callouts
+4. **Round 2** — each fragment responds to the others (streamed live)
+5. **Vote** — each fragment renders `APPROVE` or `REJECT` with a one-sentence reason
+6. **Verdict** — 2-of-3 majority displayed
+7. **Commander Override** — override the verdict in either direction; rescind at will
+
+### Shared memory layer (SQLite)
+
+- Stores claims by fragment and round
+- Stores cited evidence (search queries, cited URLs, inline links)
+- Stores past votes by fragment/topic
+- Logs contradictions when a fragment flips from a relevant past vote
+- Injects each fragment's relevant past votes at debate start; contradictions require explicit acknowledgment
 
 ---
 
@@ -99,6 +108,7 @@ consilium-magi/
 |-------|---------|
 | `agent_start` | `{ agent, round }` |
 | `token` | `{ agent, round, text }` |
+| `reaction` | `{ agent, round, reactor, stance, text }` |
 | `agent_done` | `{ agent, round }` |
 | `vote` | `{ agent, vote, reason }` |
 | `verdict` | `{ approve_count, verdict }` |
